@@ -7,3 +7,6 @@
 [submodule "vendor/AudioUnitSDK"]
 	path = vendor/AudioUnitSDK
 	url = https://github.com/apple/AudioUnitSDK
+[submodule "vendor/miniaudio"]
+	path = vendor/miniaudio
+	url = https://github.com/mackron/miniaudio
