@@ -12,6 +12,12 @@
 #       hoc, and registers it with LaunchServices again, so that Finder and the Dock show what it is now.
 #   macos-app.sh plugin BUNDLE PLIST
 #       Makes BUNDLE (D110Emu.vst3, its program just linked) whole: its Info.plist and PkgInfo; then signs it ad hoc.
+#   macos-app.sh strip FILE program|app|plugin
+#       Strips FILE, a Release build's program just linked (built without debug information, it still holds the names
+#       of its functions): a program of its own (a terminal program, a tool) or an app's of every symbol it does not
+#       need to run, a plugin's of all but the entry points it exports. Apple's linker signs what it links, and a
+#       change voids that signature, so a program of its own is signed again ad hoc; an app or a plugin is signed as a
+#       whole afterwards (bundle, plugin).
 
 set -e
 
@@ -121,8 +127,27 @@ plugin)
     xattr -cr "$bundle" 2> /dev/null || true
     codesign --force --sign - "$bundle"
     ;;
+strip)
+    file=$2
+    case "$3" in
+    program | app)
+        strip "$file"
+        ;;
+    plugin)
+        # A loadable bundle keeps its global symbols (-x), which its export list leaves to the entry points alone.
+        strip -S -x "$file"
+        ;;
+    *)
+        echo "usage: $0 strip FILE program|app|plugin" >&2
+        exit 2
+        ;;
+    esac
+    if [ "$3" = program ]; then
+        codesign --force --sign - "$file"
+    fi
+    ;;
 *)
-    echo "usage: $0 sdl3 DIR | bundle APP PLIST FRAMEWORK [ICON] | plugin BUNDLE PLIST" >&2
+    echo "usage: $0 sdl3 DIR | bundle APP PLIST FRAMEWORK [ICON] | plugin BUNDLE PLIST | strip FILE program|app|plugin" >&2
     exit 2
     ;;
 esac

@@ -1,12 +1,10 @@
--- D110Emu build script (premake 5.0.0-beta8 or newer).
+-- D110Emu build script (premake 5.0.0-beta8 or newer). The project files it makes are not part of the sources, so
+-- every build starts with it (BUILDING.md), and again after source files are added or removed.
 --
---   Windows (Visual Studio 2022):  tools\premake5.exe vs2022   ->  D110Emu.sln, output in bin\<Config>
---   Linux (the makefiles ship too): make -C build/gmake-linux config=release   (after changes: premake5 gmake)
---   macOS (the makefiles ship too): make -C build/gmake-macosx config=release   (after changes: premake5 --os=macosx gmake);
---                                   the window's first build downloads SDL 3 (tools/macos-app.sh)
---
--- The generated Visual Studio files ship alongside the sources, so building on Windows
--- only needs D110Emu.sln. Regenerate them after adding or removing source files.
+--   Windows (Visual Studio 2022):  generate_vs2022.bat (tools\premake5.exe vs2022)  ->  D110Emu.sln, output in bin\<Config>
+--   Linux:                         premake5 gmake, then make -C build/gmake-linux config=release
+--   macOS:                         premake5 gmake, then make -C build/gmake-macosx config=release;
+--                                  the window's first build downloads SDL 3 (tools/macos-app.sh)
 
 local isVisualStudio = _ACTION ~= nil and _ACTION:match("^vs") ~= nil
 local targetsWindows = os.target() == "windows"
@@ -14,6 +12,8 @@ local targetsMac = os.target() == "macosx"
 -- Makefile builds get per-OS folders so a native build and a MinGW cross-build can coexist.
 local projectDir = "build/" .. (_ACTION or "none") .. (isVisualStudio and "" or "-" .. os.target())
 local outputDir = isVisualStudio and "%{cfg.buildcfg}" or "%{cfg.system}-%{cfg.buildcfg}"
+-- This folder as the makefiles' commands see it (they run in projectDir).
+local root = path.getrelative(path.getabsolute(projectDir), path.getabsolute("."))
 
 workspace "D110Emu"
     location(isVisualStudio and "." or projectDir)
@@ -56,8 +56,25 @@ workspace "D110Emu"
     filter "configurations:Release"
         defines { "NDEBUG" }
         optimize "Speed"
-        symbols "On"
         runtime "Release"
+
+    -- A Release build's debug information: Visual Studio keeps it in .pdb files beside the programs, but on Linux and
+    -- macOS it would go into the programs themselves (the Linux plugin was 29 MB, most of it DWARF). There they are
+    -- built without it and stripped: gcc links them with -s (premake adds it with symbols "Off"; its clang toolset
+    -- does not). macOS's linker has no such option, so the makefiles strip what they link right after linking it
+    -- (tools/macos-app.sh strip). These workspace-wide commands come before a project's own, so an app or a plugin is
+    -- stripped before its bundle or plugin step signs it as a whole; a program of its own (a terminal program, a tool)
+    -- is signed again by the strip step, as the change voids the signature Apple's linker gave it.
+    filter { "configurations:Release", "system:windows" }
+        symbols "On"
+    filter { "configurations:Release", "system:not windows" }
+        symbols "Off"
+    filter { "configurations:Release", "system:macosx", "kind:ConsoleApp" }
+        postbuildcommands { "sh " .. root .. "/tools/macos-app.sh strip \"$(TARGET)\" program" }
+    filter { "configurations:Release", "system:macosx", "kind:WindowedApp" }
+        postbuildcommands { "sh " .. root .. "/tools/macos-app.sh strip \"$(TARGET)\" app" }
+    filter { "configurations:Release", "system:macosx", "kind:SharedLib" }
+        postbuildcommands { "sh " .. root .. "/tools/macos-app.sh strip \"$(TARGET)\" plugin" }
 
     filter {}
 
@@ -348,7 +365,7 @@ end
 
 if os.target() == "linux" then
     -- The emulator's window on Linux: SDL 3 (Wayland or X11) drawing with SDL's renderer, ALSA MIDI input (the ALSA
-    -- library loaded when it runs), miniaudio. Building it needs SDL 3's development files: sudo apt install libsdl3-dev.
+    -- library loaded when it runs), miniaudio. Building it needs SDL 3's development files (BUILDING.md lists the packages).
     project "D110Emu"
         location(projectDir)
         kind "WindowedApp"
@@ -407,8 +424,8 @@ if os.target() == "linux" then
     -- The emulator as a VST3 instrument on Linux, as on Windows: the bundle bin/linux-<Config>/VST3/D110Emu.vst3 (with
     -- D110Emu.so in Contents/<machine>-linux, the machine as uname -m names it), which goes in ~/.vst3. Its window is an
     -- X11 child of the host's, drawn with OpenGL (GLX) through Dear ImGui's OpenGL3 backend and run by the host's
-    -- event loop. Building it needs the X11 and OpenGL development files (libx11-dev and libgl-dev, which libsdl3-dev
-    -- brings too).
+    -- event loop. Building it needs the X11 and OpenGL development files and the static C++ runtime (BUILDING.md lists the
+    -- packages).
     project "D110EmuVST3"
         location(projectDir)
         kind "SharedLib"
@@ -458,7 +475,6 @@ if targetsMac then
     -- (Metal), CoreMIDI input, miniaudio (Core Audio). SDL 3 is its official framework, which tools/macos-app.sh
     -- downloads once into build/sdl3-macos; after linking, it puts that in the app with the Info.plist and signs the app,
     -- so that the app runs on Macs without SDL (macOS 11 and later).
-    local root = path.getrelative(path.getabsolute(projectDir), path.getabsolute("."))
     local sdlDir = path.getrelative(path.getabsolute(projectDir), path.getabsolute("build/sdl3-macos"))
     project "D110Emu"
         location(projectDir)

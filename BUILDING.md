@@ -22,6 +22,8 @@ The ROMs are not part of the sources. Before the first start, put them where [RE
 
 The tools and tests go in the same folder (see [Tests and tools](#tests-and-tools)). Debug builds go in `bin\Debug`, `bin/linux-Debug` and `bin/macosx-Debug`.
 
+Release builds carry no debug information in their programs and plugins. Visual Studio keeps it in `.pdb` files beside them, which they don't need to run; on Linux and macOS they are built without it and stripped of their symbols. Debug builds keep it, for a debugger.
+
 ## Windows
 
 ### Prerequisites
@@ -160,7 +162,7 @@ make -C build/gmake-linux config=release D110EmuVST3 -j4                        
 make -C build/gmake-linux config=release -j4                                       # everything, the tools and tests too
 ```
 
-Each line builds what it names and what that needs. `-j4` compiles four files at once (`-j$(nproc)` uses every core). On a Raspberry Pi 5 the window and the terminal version take about two minutes, everything about nine. The terminal versions build without SDL 3 (`make -C build/gmake-linux config=release D110EmuTUI MT32TranslatorTUI -j4`). `config=debug` makes a Debug build, in `bin/linux-Debug`.
+Each line builds what it names and what that needs. `-j4` compiles four files at once (`-j$(nproc)` uses every core). On a Raspberry Pi 5 the window and the terminal version take about two minutes, everything about six and a half. The terminal versions build without SDL 3 (`make -C build/gmake-linux config=release D110EmuTUI MT32TranslatorTUI -j4`). `config=debug` makes a Debug build, in `bin/linux-Debug`. A Release build links everything stripped (`-s`), which `file` shows as "stripped".
 
 The programs are then in `bin/linux-Release`:
 
@@ -235,7 +237,7 @@ make -C build/gmake-macosx config=release D110EmuVST3 D110EmuAU -j8             
 make -C build/gmake-macosx config=release -j8                                     # everything, the tools and tests too
 ```
 
-`-j8` compiles eight files at once (`-j$(sysctl -n hw.ncpu)` uses every core). `config=debug` makes a Debug build, in `bin/macosx-Debug`. The apps and plugins are signed ad hoc as they are built, as macOS requires.
+`-j8` compiles eight files at once (`-j$(sysctl -n hw.ncpu)` uses every core). `config=debug` makes a Debug build, in `bin/macosx-Debug`. The apps and plugins are signed ad hoc as they are built, as macOS requires. In a Release build, the build strips each program with Apple's `strip` right after linking it, then signs it (an app or a plugin as a whole), as a signature does not survive a change.
 
 The programs are then in `bin/macosx-Release`:
 
@@ -270,7 +272,7 @@ auval -v aumu D110 LA32
 ## After updating the sources
 
 - Run premake5 again (step 1 for your system), as a newer version may add or remove source files.
-- make rebuilds only what changed in the sources, not what changed in how they are compiled. If a build fails after an update in a way the changes don't explain ("recompile with -fPIC", say), clean first with `make -C build/gmake-linux config=release clean` (on a Mac, `build/gmake-macosx`). A plain `make clean` cleans the Debug build. In Visual Studio, **Build > Rebuild Solution** does the same.
+- make rebuilds only what changed in the sources, not what changed in how they are built. After an update that changes that (such as Release builds becoming stripped), or when a build fails in a way the changes don't explain ("recompile with -fPIC", say), clean first with `make -C build/gmake-linux config=release clean` (on a Mac, `build/gmake-macosx`), then build again. A plain `make clean` cleans the Debug build. In Visual Studio, **Build > Rebuild Solution** does the same.
 
 ## Tests and tools
 
