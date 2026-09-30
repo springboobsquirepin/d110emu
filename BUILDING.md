@@ -27,7 +27,7 @@ The tools and tests go in the same folder (see [Tests and tools](#tests-and-tool
 ### Prerequisites
 
 - Windows 10 or 11, 64-bit.
-- Visual Studio 2022 with the **Desktop development with C++** workload.
+- Visual Studio 2022 with the **Desktop development with C++** workload. The free Community edition does.
 - premake5 comes with the sources, as `tools\premake5.exe` (version 5.0.0-beta8), so there is nothing to install for it.
 
 The sources carry every library they use (Dear ImGui, miniaudio, the VST3 interfaces), so nothing else is needed.
@@ -55,47 +55,93 @@ A plugin under Program Files finds its ROMs in `%APPDATA%\D110Emu\roms` or insid
 
 ### Prerequisites
 
-Debian 13, Raspberry Pi OS based on it, or another distribution (the windows need SDL 3.2 or later), on a 64-bit PC or an ARM computer (a Raspberry Pi 4 or 5 included).
+Any distribution with GCC and, for the windows, SDL 3.2 or later, on a 64-bit PC or an ARM computer (a Raspberry Pi 4 or 5 included). A build needs these packages:
 
-1. A C++ compiler and make:
+| What for | Debian, Ubuntu, Raspberry Pi OS | Fedora | RHEL, AlmaLinux, Rocky Linux | Arch Linux, Manjaro |
+|---|---|---|---|---|
+| Everything: a C++ compiler and make | `build-essential` | `gcc-c++ make` | `gcc-c++ make` | `base-devel` |
+| Everything: premake5 | none, see [below](#premake5-where-the-distribution-has-none) | `premake` | none, see [below](#premake5-where-the-distribution-has-none) | `premake` |
+| The windows: SDL 3 | `libsdl3-dev` | `SDL3-devel` | `SDL3-devel` (CRB) | `sdl3` |
+| The VST3 plugin: X11, OpenGL and the static C++ runtime | `libx11-dev libgl-dev` | `libX11-devel libglvnd-devel libstdc++-static` | `libX11-devel libglvnd-devel libstdc++-static` (CRB) | `libx11 libglvnd` |
 
-   ```sh
-   sudo apt install build-essential
-   ```
+The terminal versions and the tools need only the first two rows (but vst3host, the test host for the plugin, needs X11 too). Sound (PipeWire, PulseAudio or ALSA) and MIDI (the ALSA sequencer) need no development files, as the programs load them when they run. The plugin carries its own copy of the C++ runtime, so that it never depends on the one a DAW brings. It takes that copy from the static C++ runtime, which Fedora and RHEL keep in a package of its own, `libstdc++-static`: without it, the plugin's link stops with "cannot find -lstdc++".
 
-2. premake5, version 5.0.0-beta8 or later. Some distributions don't package it (Debian's `premake4` cannot make these project files). The commands below put it in `~/.local/bin`, which Debian and Raspberry Pi OS add to the PATH once the folder exists: log in again, or type `~/.local/bin/premake5` until then. `premake5 --version` shows the version.
-   - On a 64-bit Intel or AMD PC, take premake's ready-made one:
+#### Debian, Ubuntu and Raspberry Pi OS
 
-     ```sh
-     curl -LO https://github.com/premake/premake-core/releases/download/v5.0.0-beta8/premake-5.0.0-beta8-linux.tar.gz
-     tar -xzf premake-5.0.0-beta8-linux.tar.gz
-     chmod +x premake5 && mkdir -p ~/.local/bin && mv premake5 ~/.local/bin/
-     ```
+Debian 13 or later, Raspberry Pi OS based on it, or Ubuntu 25.04 or later (earlier releases have no SDL 3).
 
-   - On a Raspberry Pi or another ARM computer, premake has no ready-made one, so build it from its sources (a minute on a Raspberry Pi 5):
+```sh
+sudo apt install build-essential           # everything
+sudo apt install libsdl3-dev               # the windows
+sudo apt install libx11-dev libgl-dev      # the VST3 plugin (libsdl3-dev brings these too)
+```
 
-     ```sh
-     sudo apt install uuid-dev
-     curl -L https://github.com/premake/premake-core/archive/refs/tags/v5.0.0-beta8.tar.gz | tar -xz
-     make -C premake-core-5.0.0-beta8 -f Bootstrap.mak linux
-     mkdir -p ~/.local/bin && cp premake-core-5.0.0-beta8/bin/release/premake5 ~/.local/bin/
-     ```
+These distributions have no premake5 (Debian's `premake4` cannot make these project files): see [premake5 where the distribution has none](#premake5-where-the-distribution-has-none).
 
-   - With Homebrew on Linux, `brew install premake` gives it on both.
+#### Fedora
 
-3. For the windows (D110Emu, MT32Translator and ToneEditor), SDL 3's development files:
+Fedora 43 or later:
 
-   ```sh
-   sudo apt install libsdl3-dev
-   ```
+```sh
+sudo dnf install gcc-c++ make premake                            # everything (premake gives premake5)
+sudo dnf install SDL3-devel                                      # the windows
+sudo dnf install libX11-devel libglvnd-devel libstdc++-static    # the VST3 plugin
+```
 
-4. For the VST3 plugin, the X11 and OpenGL development files (`libsdl3-dev` brings them too):
+`SDL3-devel` brings `libX11-devel` and `libglvnd-devel` too, but not `libstdc++-static`.
 
-   ```sh
-   sudo apt install libx11-dev libgl-dev
-   ```
+#### RHEL, AlmaLinux, Rocky Linux and CentOS Stream
 
-The terminal versions and the tools need only the first two. Sound (PipeWire, PulseAudio or ALSA) and MIDI (the ALSA sequencer) need no development files, as the programs load them when they run.
+Version 10 (version 9 has no SDL 3). `SDL3-devel` and `libstdc++-static` are in the CRB repository (CodeReady Linux Builder on RHEL), which is off until you turn it on:
+
+```sh
+sudo dnf config-manager --set-enabled crb                                             # AlmaLinux, Rocky Linux, CentOS Stream
+sudo subscription-manager repos --enable codeready-builder-for-rhel-10-$(arch)-rpms   # RHEL itself
+```
+
+Then:
+
+```sh
+sudo dnf install gcc-c++ make                                    # everything
+sudo dnf install SDL3-devel                                      # the windows
+sudo dnf install libX11-devel libglvnd-devel libstdc++-static    # the VST3 plugin
+```
+
+These distributions have no premake5, EPEL included: see [premake5 where the distribution has none](#premake5-where-the-distribution-has-none).
+
+#### Arch Linux, Manjaro and EndeavourOS
+
+```sh
+sudo pacman -S --needed base-devel premake    # everything
+sudo pacman -S --needed sdl3                  # the windows
+sudo pacman -S --needed libx11 libglvnd       # the VST3 plugin
+```
+
+Arch's packages include their development files, and its `gcc` has the static C++ runtime.
+
+#### premake5 where the distribution has none
+
+The commands below install premake5 5.0.0-beta8 (`premake5 --version` shows the version) into `~/.local/bin`, which most distributions add to the PATH once the folder exists: log in again, or type `~/.local/bin/premake5` until then.
+
+- On a 64-bit Intel or AMD PC, take premake's ready-made one:
+
+  ```sh
+  curl -LO https://github.com/premake/premake-core/releases/download/v5.0.0-beta8/premake-5.0.0-beta8-linux.tar.gz
+  tar -xzf premake-5.0.0-beta8-linux.tar.gz
+  chmod +x premake5 && mkdir -p ~/.local/bin && mv premake5 ~/.local/bin/
+  ```
+
+- On a Raspberry Pi or another ARM computer, premake has no ready-made one, so build it from its sources (a minute on a Raspberry Pi 5). It needs the UUID library's development files:
+
+  ```sh
+  sudo apt install uuid-dev          # Debian, Ubuntu, Raspberry Pi OS
+  sudo dnf install libuuid-devel     # RHEL, AlmaLinux, Rocky Linux
+  curl -L https://github.com/premake/premake-core/archive/refs/tags/v5.0.0-beta8.tar.gz | tar -xz
+  make -C premake-core-5.0.0-beta8 -f Bootstrap.mak linux
+  mkdir -p ~/.local/bin && cp premake-core-5.0.0-beta8/bin/release/premake5 ~/.local/bin/
+  ```
+
+- With Homebrew on Linux, `brew install premake` gives it on both.
 
 ### 1. Generate the makefiles
 
