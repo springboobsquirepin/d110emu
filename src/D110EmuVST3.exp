@@ -1,0 +1,5 @@
+# The macOS VST3 plugin's exports (ld's -exported_symbols_list): the VST3 entry points alone. Everything else stays
+# inside the bundle, including Dear ImGui and mt32emu, which a host or another plugin may have copies of its own of.
+_GetPluginFactory
+_bundleEntry
+_bundleExit

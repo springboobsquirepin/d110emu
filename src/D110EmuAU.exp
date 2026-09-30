@@ -1,0 +1,3 @@
+# The Audio Unit's exports (ld's -exported_symbols_list): its factory function alone, which its Info.plist names.
+# Everything else stays inside the bundle, including Dear ImGui, mt32emu and the AudioUnitSDK.
+_D110EmuAUFactory

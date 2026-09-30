@@ -1,0 +1,3 @@
+; The plugin's exports besides VSTPluginMain (which VstPlugin.cpp exports): "main", which hosts from before VST 2.4 look for.
+EXPORTS
+    main=VSTPluginMain

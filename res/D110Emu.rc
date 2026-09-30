@@ -1,0 +1,3 @@
+// D110Emu's icon (D110Emu.ico, which tools/make_icons.py makes from the D-110 logo) for D110Emu.exe and D110EmuTUI.exe:
+// Explorer shows an .exe's first icon, and Win32Host.cpp gives the window icon 1 where the program has one.
+1 ICON "D110Emu.ico"

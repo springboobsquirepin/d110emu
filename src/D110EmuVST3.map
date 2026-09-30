@@ -1,0 +1,10 @@
+/* The Linux VST3 plugin's exports: the VST3 entry points alone. Everything else stays inside the library, including
+   the C++ runtime and Dear ImGui, which a host may have copies of its own of. */
+{
+    global:
+        GetPluginFactory;
+        ModuleEntry;
+        ModuleExit;
+    local:
+        *;
+};
